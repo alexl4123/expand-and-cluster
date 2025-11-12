@@ -2,17 +2,19 @@
 
 ### Welcome
 
-This framework allows to experiment on parameter identification of neural networks. It is the codebase of the following work:  
-
-* [_Expand-and-Cluster: Parameter Recovery of Neural Networks._](https://arxiv.org/abs/2304.12794) Flavio Martinelli, Berfin Şimşek, Wulfram Gerstner and Johanni Brea. ArXiv 2023.
-
-Created by [Flavio Martinelli](https://scholar.google.com/citations?user=DabSKBgAAAAJ&hl=it) working in the [Laboratory of Computational Neuroscience, EPFL](https://www.epfl.ch/labs/lcn). 
-
-The skeleton of the codebase is heavily inspired and adapted from [OpenLTH: A Framework for Lottery Tickets and Beyond](https://github.com/facebookresearch/open_lth), developed by [Jonathan Frankle](http://www.jfrankle.com).
+This framework - Expand-and-Cluster (EC) - allows to experiment on parameter identification of neural networks.
 
 ### Citation
 
-If you use this library in a research paper, please cite this repository.
+Please cite this repository and the following papers if you use this repository for your work:
+
+- Flavio Martinelli, Berfin Şimşek, Wulfram Gerstner, and Johanni Brea. 2024. Expand-and-cluster: parameter recovery of neural networks. In Proceedings of the 41st International Conference on Machine Learning (ICML'24), Vol. 235. JMLR.org, Article 1419, 34895–34919.
+- Alexander Beiser, Flavio Martinelli, Wulfram Gerstner, and Johanni Brea. 2025. Data Augmentation Techniques to Reverse-Engineer Neural Network Weights from Input-Output Queries. In Proceedings of the III edition of the Workshop on Unifying Representations in Neural Models (UniReps 2025).
+
+### Team
+
+EC was created by [Flavio Martinelli](https://scholar.google.com/citations?user=DabSKBgAAAAJ&hl=it) working in the [Laboratory of Computational Neuroscience, EPFL](https://www.epfl.ch/labs/lcn) and later extended by [Alexander Beiser](https://scholar.google.com/citations?hl=en&user=YifdmZ4AAAAJ&view_op=list_works&gmla=AH8HC4ybD4aemowyjG--vnwCxY-5hf9TjkpYrN5bJc_uAZraZuLPiTSXkOS6WUDDhdorLGa1rULT3x8hdKqlahfK9asyN6rDs4-ZKV9D4n7YCdjh83Wtp8ZHcoo2hP06a-Eeuv9iMOwYUxzlVaMvoY67JsUZpkyY9mdxU_tEuVIj1sk&sciund=13887827614378907953).
+
 
 ### License
 
@@ -589,3 +591,7 @@ Example:
 ## <a name=acknowledgements></a>6 Acknowledgements
 
 I would like to thank Christos Sourmpis for the fruitful discussions over implementation strategies for running systematic experiments, and Johnatan Frankle for making the [OpenLTH](https://github.com/facebookresearch/open_lth) framework available on GitHub!
+
+The skeleton of the codebase is heavily inspired and adapted from [OpenLTH: A Framework for Lottery Tickets and Beyond](https://github.com/facebookresearch/open_lth), developed by [Jonathan Frankle](http://www.jfrankle.com).
+
+
