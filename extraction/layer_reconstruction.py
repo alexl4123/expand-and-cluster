@@ -11,6 +11,7 @@
 import copy
 import os
 import sys
+import logging
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
@@ -19,6 +20,8 @@ from scipy.spatial.distance import pdist, squareform
 
 from extraction.plotting import plot_all_features
 from training.wandb_init import log_figure_wandb
+
+logger = logging.getLogger('')
 
 
 def reconstruct_layer(W, N, gamma, beta, losses, A=None, dist="L2", final_layer=False, symmetry="none",
@@ -45,7 +48,12 @@ def reconstruct_layer(W, N, gamma, beta, losses, A=None, dist="L2", final_layer=
     The latter is None if A=None.
     """
     assert N == W.shape[2], f"W tensor last dimension {W.shape[2]} and number of students N={N} do not match!"
-    assert gamma * N >= 2, f"The small cluster threshold (gamma * N = {gamma * N}) is lower than 2!"
+    if gamma * N < 2:  # No clustering possible!
+        # f"The small cluster threshold (gamma * N = {gamma * N}) is lower than 2!"
+        w_reconstructed = W[:,:,0] 
+        a_reconstructed = A[:,:,0] 
+        return w_reconstructed, a_reconstructed
+        
     if plots_folder is not None:
         if not os.path.exists(plots_folder):
             os.makedirs(plots_folder)
@@ -71,31 +79,36 @@ def reconstruct_layer(W, N, gamma, beta, losses, A=None, dist="L2", final_layer=
                       verbose=True)
 
     big_cluster_no = len(clusters)
+    logger = logging.getLogger('')
     if verbose:
-        print(f"Found {big_cluster_no} of size bigger than {gamma*N}.")
+        string = f"Found {big_cluster_no} of size bigger than {gamma*N}."
+        logger.info(string)
+        print(string)
 
     # Remove unaligned clusters
     clusters, cluster_indices, median_cos_distances = remove_unaligned_clusters(clusters, cluster_indices, beta,
                                                                                 cluster_mask=cluster_mask,
                                                                                 verbose=verbose)
-    print(f"Collapsing {len(clusters)} clusters.")
+    logger.info(f"Collapsing {len(clusters)} clusters.")
 
     # Plot clustering results before collapsing
     if plots_folder is not None:
         if features.shape[0] < 15000:  # Plotting for bigger matrices crashes
             if verbose:
-                print("producing dendrogram...")
+                logger.info("producing dendrogram...")
             fig, ax = plot_dendrogram(H, color_threshold=h_thr)
             ax.axhline(h_thr, color="orange", linestyle="--")
             fig.savefig(os.path.join(plots_folder, f"{exp_name}_dendrogram.pdf"))
             plt.close(fig)
 
             if verbose:
-                print("producing simmat...")
+                logger.info("producing simmat...")
+            """
             fig, ax = plot_simmat(H, simmat)
             ax.set_title("")
             fig.savefig(os.path.join(plots_folder, f"{exp_name}_simmat.pdf"))
             plt.close(fig)
+            """
 
         fig, ax = plot_alignments(median_cos_distances, beta)
         ax.set_title(f"Cluster alignments: {len(clusters)} clusters found")
@@ -104,17 +117,23 @@ def reconstruct_layer(W, N, gamma, beta, losses, A=None, dist="L2", final_layer=
         plt.close(fig)
 
     # Collapse clusters: theta = (list of w_reconstructed, list of a_reconstructed)
-    theta = collapse(clusters, cluster_indices, W, A, N, losses, fan_out, final_layer, original_signs, symmetry,
+    if len(clusters) > 1:
+        theta = collapse(clusters, cluster_indices, W, A, N, losses, fan_out, final_layer, original_signs, symmetry,
                      verbose)
-    w_reconstructed = np.array(theta[0]).T
-    a_reconstructed = None
-    # plot_all_features(w_reconstructed[:-1, :, np.newaxis])
-    if A is not None:
-        if final_layer:
-            a_reconstructed = np.array(theta[1])
-        else:
-            a_reconstructed = np.transpose(np.array(theta[1]), [0, 2, 1])
-    # plot_all_features(a_reconstructed[:, :, np.newaxis], reshape=False, vlims=[-1, 1])[1].show()
+        w_reconstructed = np.array(theta[0]).T
+        a_reconstructed = None
+        # plot_all_features(w_reconstructed[:-1, :, np.newaxis])
+        if A is not None:
+            if final_layer:
+                a_reconstructed = np.array(theta[1])
+            else:
+                a_reconstructed = np.transpose(np.array(theta[1]), [0, 2, 1])
+        # plot_all_features(a_reconstructed[:, :, np.newaxis], reshape=False, vlims=[-1, 1])[1].show()
+    else:
+        # If no cluster was found, this branch of the if-condition ensures the further computation of expand-and-cluster!
+        w_reconstructed = W[:,:,0] 
+        a_reconstructed = A[:,:,0] 
+        
     return w_reconstructed, a_reconstructed
 
 
@@ -138,7 +157,7 @@ def collapse(clusters, cluster_indices, W, A, N, losses, fan_out, final_layer, o
     final_A = []
 
     if verbose:
-        print(f"Collapsing based on best student neuron 'cluster number -> student rank':")
+        logger.info(f"Collapsing based on best student neuron 'cluster number -> student rank':")
 
     # i_clus: cluster number
     # cluster: weight vectors in the cluster
@@ -159,7 +178,7 @@ def collapse(clusters, cluster_indices, W, A, N, losses, fan_out, final_layer, o
             if np.sum([i in neurons_idx_best_student for i in indices]) > 0:
                 # the best_no^th best student contains neurons in this cluster
                 if verbose:
-                    print(f"#{i_clus}->{best_no+1}, ", end="")
+                    logger.info(f"#{i_clus}->{best_no+1}, ")
                 break
 
         # Loop through cluster elements and:
@@ -198,7 +217,7 @@ def collapse(clusters, cluster_indices, W, A, N, losses, fan_out, final_layer, o
             cluster_outputs.append(a_sums[nn, :])
 
     if verbose:
-        print(f"\nFinal layer size: {len(w_centers)}\n")
+        logger.info(f"\nFinal layer size: {len(w_centers)}\n")
     return w_centers, cluster_outputs
 
 
@@ -223,7 +242,7 @@ def remove_unaligned_clusters(C, C_idx, beta, cluster_mask=None, verbose=False):
     cos_dist_tol = 1 - np.cos(beta)
     unaligned_idxs = np.where(np.array(median_cos_distances) > cos_dist_tol)[0]
     if verbose:
-        print(f"removing {len(unaligned_idxs)}/{len(C)} unaligned clusters ")
+        logger.info(f"removing {len(unaligned_idxs)}/{len(C)} unaligned clusters ")
     clusters = [c for i, c in enumerate(C) if i not in unaligned_idxs]
     cluster_indices = [ci for i, ci in enumerate(C_idx) if i not in unaligned_idxs]
     return clusters, cluster_indices, median_cos_distances
@@ -249,15 +268,15 @@ def find_clusters(w, min_size, plateau_threshold=0.1, fix_clusters=None, linkage
     :return: List of weights belonging to each cluster, cluster_indices, linkage result H, dissimilarity matrix
     """
 
-    if verbose: print(f"computing pairwise {dist} distances...", end="")
+    if verbose: logger.info(f"computing pairwise {dist} distances...")
     w_masked = np.einsum('ij,j->ij', w, cluster_mask) if cluster_mask is not None else w
     simmat = pdist(w_masked, "cosine") if dist == "cosine" else pdist(w_masked)
-    if verbose: print(" Done!")
+    if verbose: logger.info(" Done!")
     if linkage == "complete":
         H = hierarchy.complete(simmat)
     else:
         H = hierarchy.average(simmat)
-    if verbose: print("Finding tree cut threshold")
+    if verbose: logger.info("Finding tree cut threshold")
     big_clusters = []
     for i, thr in enumerate(H[:, 2]):  # loop through all merging heights
         c = hierarchy.fcluster(H, thr, criterion='distance')
@@ -304,9 +323,9 @@ def find_clusters(w, min_size, plateau_threshold=0.1, fix_clusters=None, linkage
                 h_thr = 0.05 * H[np.where(big_clusters == fix_clusters)[0][0], 2] + \
                         0.95 * H[np.where(big_clusters == fix_clusters + 1)[0][0], 2]
             except Exception as e:
-                print("The selected number of clusters was never reached in the tree")
+                logger.info("The selected number of clusters was never reached in the tree")
 
-    if verbose: print("Extracting clusters")
+    if verbose: logger.info("Extracting clusters")
     if forced_cut_height is not None:
         h_thr = forced_cut_height
     c = hierarchy.fcluster(H, h_thr, criterion='distance')
@@ -366,7 +385,12 @@ def plot_alignments(cos_distances, beta):
     ax.set_xticklabels(clusters_id)
     # smaller font size of xticks
     for tick in ax.xaxis.get_major_ticks():
-        tick.label.set_fontsize(2)
+        if hasattr(tick, "label"):
+            tick.label.set_fontsize(2)
+        if hasattr(tick, "label1"):
+            tick.label1.set_fontsize(2)
+        if hasattr(tick, "label2"):
+            tick.label2.set_fontsize(2)
     # rotate xticklabels
     for tick in ax.get_xticklabels():
         tick.set_rotation(60)
@@ -391,36 +415,70 @@ def compare_with_teacher(wt, bt, at, ws, bs, as_, symmetry, cluster_mask=None, l
         dist_fun_w = cosine_dissimilarity
         dist_fun_a = cosine_dissimilarity
 
-    wt = np.concatenate([wt, bt[np.newaxis, :]], axis=0)
-    ws = np.concatenate([ws, bs[np.newaxis, :]], axis=0)
+    
+    if len(ws.shape) > 2:
+        wt = np.concatenate([wt, bt[np.newaxis, :]], axis=0)
+        ws = np.concatenate([ws, bs[np.newaxis, :]], axis=0)
 
-    # sort teacher weights from highest to lowest output neuron norm
-    idx_sorted = np.argsort(np.linalg.norm(at, ord=2, axis=1))[::-1]
-    wt = wt[:, idx_sorted].astype(np.double)  # We need higher precision for cosine similarity
-    at = at[idx_sorted, :].astype(np.double)
+        # sort teacher weights from highest to lowest output neuron norm
+        idx_sorted = np.argsort(np.linalg.norm(at, ord=2, axis=1))[::-1]
+        wt = wt[:, idx_sorted].astype(np.double)  # We need higher precision for cosine similarity
+        at = at[idx_sorted, :].astype(np.double)
+
+        iteration_zip = zip(wt.T, at)
+    elif len(ws.shape) == 2:
+        wt = np.concatenate([wt, bt[np.newaxis]], axis=0)
+        ws = np.concatenate([ws, bs[np.newaxis]], axis=0)
+
+        # Transpose not necessary for 1 neuron
+        iteration_zip = zip(wt.T, at)
+    else:
+        # We do not sort here
+        # No sorting is necessary in the case of only 1 neuron (slightly different code)
+        wt = np.concatenate([wt, bt[np.newaxis]], axis=0)
+        ws = np.concatenate([ws, bs[np.newaxis]], axis=0)
+
+        # Transpose not necessary for 1 neuron
+        iteration_zip = [(wt, at)]
 
     best_sims_w = []
     signs_w = []
     signs_a = []
     student_idx_matched = []
     best_sims_a = []
-    for wtt, att in zip(wt.T, at):
-        sim_w = np.array([dist_fun_w(cluster_mask * wtt, cluster_mask * wss) for wss in ws.T])
+    #print(ws.T)
+    for wtt, att in iteration_zip:
+        #print(wtt)
+        if len(ws.shape) >= 2:
+            sim_w = np.array([dist_fun_w(cluster_mask * wtt, cluster_mask * wss) for wss in ws.T])
+        else:
+            sim_w = np.array([dist_fun_w(cluster_mask * wtt, cluster_mask * ws)])
+
         best_sims_w.append(sim_w.min())
         student_idx_matched.append(sim_w.argmin())
-        sim_a = dist_fun_a(att, as_[sim_w.argmin()])
-        signs_w.append(np.sign(1 - cosine_dissimilarity(cluster_mask * wtt, cluster_mask * ws.T[sim_w.argmin()])))
-        signs_a.append(np.sign(1 - cosine_dissimilarity(att, as_[sim_w.argmin()])))
+        if len(ws.shape) >= 2:
+            sim_a = dist_fun_a(att, as_[sim_w.argmin()])
+            signs_a.append(np.sign(1 - cosine_dissimilarity(att, as_[sim_w.argmin()])))
+            signs_w.append(np.sign(1 - cosine_dissimilarity(cluster_mask * wtt, cluster_mask * ws.T[sim_w.argmin()])))
+        elif len(ws.shape) == 2:
+            sim_a = dist_fun_a(att, as_)
+            signs_a.append(np.sign(1 - cosine_dissimilarity(att, as_[sim_w.argmin()])))
+            signs_w.append(np.sign(1 - cosine_dissimilarity((cluster_mask * wtt).T, (cluster_mask * ws))))
+        else:
+            sim_a = dist_fun_a(att, as_)
+            signs_a.append(np.sign(1 - cosine_dissimilarity(att, as_)))
+            signs_w.append(np.sign(1 - cosine_dissimilarity(cluster_mask * wtt, cluster_mask * ws)))
+
         best_sims_a.append(sim_a)
 
     teacher_best_sims_w = best_sims_w
     teacher_best_sims_a = best_sims_a
 
     if verbose:
-        print(f"Best average sim w: {np.mean(best_sims_w)}")
-        print(f"Best max sim w: {np.max(best_sims_w)}")
-        print(f"Best average sim a: {np.mean(best_sims_a)}")
-        print(f"Best max sim a: {np.max(best_sims_a)}")
+        logger.info(f"Best average sim w: {np.mean(best_sims_w)}")
+        logger.info(f"Best max sim w: {np.max(best_sims_w)}")
+        logger.info(f"Best average sim a: {np.mean(best_sims_a)}")
+        logger.info(f"Best max sim a: {np.max(best_sims_a)}")
 
     fig = plt.figure(figsize=(7, 5), dpi=200)
     gs = fig.add_gridspec(2, 4)
@@ -464,55 +522,60 @@ def compare_with_teacher(wt, bt, at, ws, bs, as_, symmetry, cluster_mask=None, l
     ax3.spines['left'].set_visible(False)
 
     # Looking at the missing student neurons
-    missing_students_idx = set(range(as_.shape[0])) - set(student_idx_matched)
-    best_sims_w = []
-    teacher_idx_matched = []
-    student_out_norms = []
-    for s_id in missing_students_idx:
-        wss = ws.T[s_id]
-        sim_w = np.array([dist_fun_w(cluster_mask * wtt, cluster_mask * wss) for wtt in wt.T])
-        best_sims_w.append(sim_w.min())
-        teacher_idx_matched.append(sim_w.argmin())
-        student_out_norms.append(np.linalg.norm(as_[s_id], ord=2))
+    if len(ws.shape) > 2:
+        missing_students_idx = set(range(as_.shape[0])) - set(student_idx_matched)
+        best_sims_w = []
+        teacher_idx_matched = []
+        student_out_norms = []
+        for s_id in missing_students_idx:
+            wss = ws.T[s_id]
+            sim_w = np.array([dist_fun_w(cluster_mask * wtt, cluster_mask * wss) for wtt in wt.T])
+            best_sims_w.append(sim_w.min())
+            teacher_idx_matched.append(sim_w.argmin())
+            student_out_norms.append(np.linalg.norm(as_[s_id], ord=2))
 
-    # sort teacher weights from highest to lowest output neuron norm
-    idx_sorted = np.argsort(teacher_idx_matched)
-    teacher_idx_matched = np.array(teacher_idx_matched)[idx_sorted]
-    student_out_norms = np.array(student_out_norms)[idx_sorted]
-    excess_neurons = len(teacher_idx_matched)
-    best_sims_w = np.array(best_sims_w)[idx_sorted]
-    facecolors = ["C0" if n > 0.1 else "white" for n in student_out_norms]
-    linestyles = ["-" if n > 0.1 else "--" for n in student_out_norms]
+        # sort teacher weights from highest to lowest output neuron norm
+        idx_sorted = np.argsort(teacher_idx_matched)
+        teacher_idx_matched = np.array(teacher_idx_matched)[idx_sorted]
+        student_out_norms = np.array(student_out_norms)[idx_sorted]
+        excess_neurons = len(teacher_idx_matched)
+        best_sims_w = np.array(best_sims_w)[idx_sorted]
+        facecolors = ["C0" if n > 0.1 else "white" for n in student_out_norms]
+        linestyles = ["-" if n > 0.1 else "--" for n in student_out_norms]
 
-    if len(best_sims_w) < 10:
-        best_sims_w = np.concatenate([best_sims_w, np.zeros(10 - len(best_sims_w))])
-        teacher_idx_matched = np.concatenate([teacher_idx_matched, np.zeros(10 - len(teacher_idx_matched))-1]).astype(
-            int)
-        facecolors = np.concatenate([facecolors, ["white"] * (10 - len(facecolors))])
-        linestyles = np.concatenate([linestyles, ["--"] * (10 - len(linestyles))])
+        if len(best_sims_w) < 10:
+            best_sims_w = np.concatenate([best_sims_w, np.zeros(10 - len(best_sims_w))])
+            teacher_idx_matched = np.concatenate([teacher_idx_matched, np.zeros(10 - len(teacher_idx_matched))-1]).astype(
+                int)
+            facecolors = np.concatenate([facecolors, ["white"] * (10 - len(facecolors))])
+            linestyles = np.concatenate([linestyles, ["--"] * (10 - len(linestyles))])
 
-    ax3.barh(range(len(teacher_idx_matched)), best_sims_w, edgecolor="C0")
-    # change each bar's facecolor based on facecolors
-    for i, patch in enumerate(ax3.patches):
-        patch.set_facecolor(facecolors[i])
-        patch.set_linestyle(linestyles[i])
-    ax3.set_title(f"{excess_neurons} excess neurons")
-    ax3.yaxis.tick_right()
-    ax3.set_yticks(range(len(teacher_idx_matched)))
-    ax3.set_yticklabels([l if l != -1 else '' for l in teacher_idx_matched])
-    ax3.set_xlabel("dist( w_t , w_s )")
-    ax3.set_ylabel("Teacher neuron index")
-    ax3.yaxis.set_label_position("right")
+        ax3.barh(range(len(teacher_idx_matched)), best_sims_w, edgecolor="C0")
+        # change each bar's facecolor based on facecolors
+        for i, patch in enumerate(ax3.patches):
+            patch.set_facecolor(facecolors[i])
+            patch.set_linestyle(linestyles[i])
+        ax3.set_title(f"{excess_neurons} excess neurons")
+        ax3.yaxis.tick_right()
+        ax3.set_yticks(range(len(teacher_idx_matched)))
+        ax3.set_yticklabels([l if l != -1 else '' for l in teacher_idx_matched])
+        ax3.set_xlabel("dist( w_t , w_s )")
+        ax3.set_ylabel("Teacher neuron index")
+        ax3.yaxis.set_label_position("right")
 
-    if log:
-        ax3.set_xlim([1e-6, 1])
-        ax3.set_xscale("log")
-    else:
-        ax3.set_xlim([0, 1])
-    ax3.invert_xaxis()
+        if log:
+            ax3.set_xlim([1e-6, 1])
+            ax3.set_xscale("log")
+        else:
+            ax3.set_xlim([0, 1])
+        ax3.invert_xaxis()
 
     fig.tight_layout()
-    return fig, teacher_best_sims_w, teacher_best_sims_a, (ws.shape[1], len(best_sims_w))
+
+    if len(ws.shape) > 1:
+        return fig, teacher_best_sims_w, teacher_best_sims_a, (ws.shape[1], len(best_sims_w))
+    else:
+        return fig, teacher_best_sims_w, teacher_best_sims_a, (ws.shape[0], len(best_sims_w))
 
 
 def compare_with_teacher_conv(wt, bt, ws, bs, symmetry, verbose=True, log=False):
@@ -554,10 +617,7 @@ def compare_with_teacher_conv(wt, bt, ws, bs, symmetry, verbose=True, log=False)
     ax1.set_title("Distance from teacher neurons")
     ax1.set_ylabel("dist( w_t , w_s )")
     if log:
-        if np.mean(best_sims_w) < 1e-6:
-            ax1.set_ylim([1e-10, 1])
-        else:
-            ax1.set_ylim([1e-6, 1])
+        ax1.set_ylim([1e-10, 1])
         ax1.set_yscale("log")
     else:
         ax1.set_ylim([0, 1])

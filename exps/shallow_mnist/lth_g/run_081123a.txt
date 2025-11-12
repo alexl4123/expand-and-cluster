@@ -1,0 +1,1 @@
+python -u EC.py $(< exps/shallow_mnist/lth_g/081123a.txt)

@@ -1,0 +1,1 @@
+python -u EC.py $(< exps/shallow_mnist/ec_g/fashion_data/210324b.txt)

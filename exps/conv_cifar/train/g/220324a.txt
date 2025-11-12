@@ -1,0 +1,7 @@
+train
+--default_hparams
+cifar_conv_C16_M_C16_M_F32
+--act_fun
+g
+--global_seed
+1

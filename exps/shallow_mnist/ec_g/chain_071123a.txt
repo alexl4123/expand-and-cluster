@@ -1,0 +1,5 @@
+python -u EC.py $(< exps/shallow_mnist/ec_g/031123b.txt)
+
+python -u EC.py $(< exps/shallow_mnist/ec_g/031123d.txt)
+
+python -u EC.py $(< exps/shallow_mnist/ec_g/031123f.txt)

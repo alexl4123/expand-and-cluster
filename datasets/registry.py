@@ -11,23 +11,25 @@
 
 import numpy as np
 
-from datasets import base, cifar10, mnist, imagenet, teacher_dataset, fashion_mnist
+from datasets import base, cifar10, mnist, imagenet, teacher_dataset, fashion_mnist, mnist_reduced_1k, mnist_reduced_5k
 from foundations.hparams import DatasetHparams
 from platforms.platform import get_platform
 
 registered_datasets = {'cifar10': cifar10, 'mnist': mnist, 'imagenet': imagenet, 'teacher': teacher_dataset,
-                       'fashion_mnist': fashion_mnist}
+                       'fashion_mnist': fashion_mnist, 'mnist_reduced_1k': mnist_reduced_1k, 'mnist_reduced_5k': mnist_reduced_5k}
 
-
-def get(dataset_hparams: DatasetHparams, train: bool = True):
+def get(dataset_hparams: DatasetHparams, train: bool = True, output_location: str = "", model = None, train_hparams = None):
     """Get the train or test set corresponding to the hyperparameters."""
 
     seed = dataset_hparams.transformation_seed or 0
 
     # Get the dataset itself.
-    if dataset_hparams.dataset_name == "teacher":
+    if dataset_hparams.dataset_name == "teacher" and model is not None:
+        use_augmentation = False
+        dataset = registered_datasets[dataset_hparams.dataset_name].Dataset(dataset_hparams, use_augmentation, output_location = output_location, model = model, train_hparams = train_hparams)
+    elif dataset_hparams.dataset_name == "teacher":
         use_augmentation = train and not dataset_hparams.do_not_augment
-        dataset = registered_datasets[dataset_hparams.dataset_name].Dataset(dataset_hparams, use_augmentation)
+        dataset = registered_datasets[dataset_hparams.dataset_name].Dataset(dataset_hparams, use_augmentation, output_location = output_location, train_hparams = train_hparams)
     elif dataset_hparams.dataset_name in registered_datasets:
         use_augmentation = train and not dataset_hparams.do_not_augment
         if train:

@@ -1,0 +1,11 @@
+train
+--default_hparams
+mnist_lenet_1
+--global_seed
+1
+--act_fun
+g
+--dataset_name
+mnist_reduced_1k
+--training_steps
+250ep

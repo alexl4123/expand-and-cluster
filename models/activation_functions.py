@@ -22,7 +22,6 @@ symmetry_registry = {
     'softplus': "even_linear",
     'gelu': "even_linear",
     'silu': "even_linear",
-    'leaky_relu': "even_linear_positive_scaling",
     'g': "none",
     '_g': "none",
     'identity': "odd"
@@ -55,10 +54,6 @@ def silu():
 
 def gelu():
     return F.gelu
-
-
-def leaky_relu():
-    return F.leaky_relu
 
 
 def g():

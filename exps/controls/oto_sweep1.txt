@@ -1,0 +1,3 @@
+python -u controls/oto.py --l 0.00464158883 --t 1 | tee controls/oto_sweep/logs/oto_sweep_0.00464158883_1.txt;
+
+python -u controls/oto.py --l 0.01 --t 1 | tee controls/oto_sweep/logs/oto_sweep_0.01_1.txt;

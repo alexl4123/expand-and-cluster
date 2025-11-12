@@ -22,6 +22,11 @@ def plot_metrics(folder_path, metric_name='test_accuracy', vlims=None, logscale=
         plot_path = folder_path
     metrics = logger.get_data(metric_name)
     metrics = list(zip(*metrics))
+
+    if len(metrics) < 2:
+        print("[ERROR] -> In plot_metrics, as metrics data could not be loaded - possible error in logging!")
+        return
+
     iterations, metrics = np.array(metrics[0]), metrics[1]
     if type(metrics[0]) == torch.Tensor:
         metrics = [t.numpy() for t in metrics]  # convert to numpy (compatibility with older versions)

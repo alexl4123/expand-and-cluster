@@ -1,0 +1,3 @@
+python -u EC.py $(< exps/shallow_fashion/ec/relu/040324a.txt)
+
+python -u EC.py $(< exps/shallow_fashion/ec/g/040324a.txt)

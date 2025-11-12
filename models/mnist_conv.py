@@ -20,7 +20,12 @@ from pruning import sparse_global
 
 
 class Model(base.Model):
-    """A classic conv neural network designed for MNIST."""
+    """A classic conv neural network designed for MNIST.
+    Naming: 
+    - Cn: Convolution with n 3x3 filters
+    - M: MaxPool layer
+    - Fn: Fully connected with n units
+    """
 
     class ConvModule(nn.Module):
         """A single convolutional module."""

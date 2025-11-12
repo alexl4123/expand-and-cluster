@@ -1,0 +1,11 @@
+train
+--default_hparams
+mnist_lenet_64
+--global_seed
+1
+--act_fun
+sigmoid
+--dataset_name
+fashion_mnist
+--training_steps
+100ep

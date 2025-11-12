@@ -15,17 +15,19 @@ from foundations import paths
 from foundations.hparams import ModelHparams
 from foundations.step import Step
 from models import cifar_resnet, cifar_vgg, mnist_lenet, imagenet_resnet, students_mnist_lenet, cifar_lenet, \
-    students_cifar_lenet, mnist_conv, students_mnist_conv, cifar_conv, students_cifar_conv
+    students_cifar_lenet, mnist_conv, students_mnist_conv, cifar_conv, students_cifar_conv, \
+        fully_connected_specified, students_fully_connected_specified
 from models import bn_initializers, initializers, activation_functions
 from platforms.platform import get_platform
 from utils.utils import set_seeds
 
 registered_models = [mnist_lenet.Model, cifar_lenet.Model, cifar_resnet.Model, cifar_vgg.Model, imagenet_resnet.Model,
                      students_mnist_lenet.Model, students_cifar_lenet.Model, mnist_conv.Model,
-                     students_mnist_conv.Model, cifar_conv.Model, students_cifar_conv.Model]
+                     students_mnist_conv.Model, cifar_conv.Model, students_cifar_conv.Model,
+                     fully_connected_specified.Model, students_fully_connected_specified.Model]
 
 
-def get(model_hparams: ModelHparams, outputs=None):
+def get(model_hparams: ModelHparams, outputs=None, dataset_hparams = None):
     """Get the model for the corresponding hyperparameters."""
 
     # Select the activation function.
@@ -56,7 +58,16 @@ def get(model_hparams: ModelHparams, outputs=None):
     model = None
     for registered_model in registered_models:
         if registered_model.is_valid_model_name(model_hparams.model_name):
-            model = registered_model.get_model_from_name(model_hparams.model_name, init_fn, act_fun, outputs)
+
+            if "fully_connected_specified" in model_hparams.model_name and dataset_hparams is not None:
+                model = registered_model.get_model_from_name(model_hparams.model_name, init_fn,
+                                                             act_fun, model_hparams, dataset_hparams = dataset_hparams,
+                                                             outputs=outputs)
+            elif "fully_connected_specified" in model_hparams.model_name:
+                model = registered_model.get_model_from_name(model_hparams.model_name, init_fn,
+                                                             act_fun, model_hparams, outputs=outputs)
+            else:
+                model = registered_model.get_model_from_name(model_hparams.model_name, init_fn, act_fun, outputs = outputs)
             break
 
     if model is None:

@@ -1,0 +1,11 @@
+train
+--default_hparams
+mnist_lenet_32
+--global_seed
+1
+--act_fun
+sigmoid
+--dataset_name
+mnist
+--training_steps
+250ep

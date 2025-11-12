@@ -162,7 +162,7 @@ class Model(base.Model):
             optimizer_name='adam',
             lr=0.001,
             training_steps='25000ep',
-            plateau_opt=True,
+            lr_scheduler="plateau",
             delta=1/np.sqrt(10),
             patience=100,
             cooldown=200

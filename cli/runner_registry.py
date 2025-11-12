@@ -13,8 +13,10 @@ from foundations.runner import Runner
 from training.runner import TrainingRunner
 from extraction.runner import ExtractionRunner
 from lottery.runner import LotteryRunner
+from evaluate_model.runner import EvaluateModelRunner
 
-registered_runners = {'train': TrainingRunner, 'extract': ExtractionRunner, 'lottery': LotteryRunner}
+
+registered_runners = {'train': TrainingRunner, 'extract': ExtractionRunner, 'lottery': LotteryRunner, 'eval': EvaluateModelRunner}
 
 
 def get(runner_name: str) -> Runner:

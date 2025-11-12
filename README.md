@@ -4,24 +4,15 @@
 
 This framework allows to experiment on parameter identification of neural networks. It is the codebase of the following work:  
 
-* [_Expand-and-Cluster: Parameter Recovery of Neural Networks._](https://arxiv.org/abs/2304.12794) Flavio Martinelli, Berfin Şimşek, Wulfram Gerstner and Johanni Brea. ICML 2024.
+* [_Expand-and-Cluster: Parameter Recovery of Neural Networks._](https://arxiv.org/abs/2304.12794) Flavio Martinelli, Berfin Şimşek, Wulfram Gerstner and Johanni Brea. ArXiv 2023.
 
 Created by [Flavio Martinelli](https://scholar.google.com/citations?user=DabSKBgAAAAJ&hl=it) working in the [Laboratory of Computational Neuroscience, EPFL](https://www.epfl.ch/labs/lcn). 
 
 The skeleton of the codebase is heavily inspired and adapted from [OpenLTH: A Framework for Lottery Tickets and Beyond](https://github.com/facebookresearch/open_lth), developed by [Jonathan Frankle](http://www.jfrankle.com).
 
-### How to Cite
+### Citation
 
-If you use this library in a research paper, please cite the main paper:
-
-> Martinelli, F., Simsek, B., Gerstner, W., & Brea, J. Expand-and-Cluster: Parameter Recovery of Neural Networks. In Forty-first International Conference on Machine Learning.
-```
-@inproceedings{martinelliexpand,
-  title={Expand-and-Cluster: Parameter Recovery of Neural Networks},
-  author={Martinelli, Flavio and Simsek, Berfin and Gerstner, Wulfram and Brea, Johanni},
-  booktitle={Forty-first International Conference on Machine Learning}
-}
-```
+If you use this library in a research paper, please cite this repository.
 
 ### License
 
@@ -33,7 +24,8 @@ Licensed under the MIT license, as found in the LICENSE file.
 ### [2 Getting Started](#getting-started)
 ### [3 Internals](#internals)
 ### [4 Extending the Framework](#extending)
-### [5 Acknowledgements](#acknowledgements)
+### [5 Data Augmentation and Data Sampling](#dataaug)
+### [6 Acknowledgements](#acknowledgements)
 
 ## <a name=overview></a>1 Overview
 
@@ -525,6 +517,75 @@ Create a new file in the `pruning` directory that subclasses the abstract base c
 Subclass the `Platform` class (from `platforms/base.py`) in a new file in the `platforms` directory. Be sure to make it a dataclass. Add any additional fields and, optionally, help strings for these fields (named `_f` for a field `f`). Implement all the required abstract properties (`root`, `dataset_root`, and `imagenet_root` if ImageNet is available). Finally, override `run_job()` if different behavior is needed for the platform; be sure to ensure that the modified `run_job()` method still installs the platform instance before calling the job function `f`.
 
 
-## <a name=acknowledgements></a>5 Acknowledgements
+## <a name=dataaug> 5. Student Data Sampling (and Data-Augmentation)
+
+This will shortly describe how to add data-sampling technique for students.
+
+First, go to `/datagen`.
+There, you need to check whether there are already data-augmentation techniques for your training-dataset.
+For example, if you use `MNIST`, then add your method in `mnist.py`.
+
+Consider however for the sake of code-style, to ad a separate class if you do a set of data-sampling strategies (e.g., `mnist_special.py`).
+Do the same if your training-dataset is not already there (e.g., `my_dataset_sampling.py`).
+Then add the new class in `registry.py` to `registered_datagen_classes`.
+
+### 5.1 The Data Sampling Method Signature
+
+Standard data-augmentation methods have the signature `(augment=None, d_in=None)` (and also a `cls` attribute, as they reside as classmethods in classes).
+
+
+If your data-generation method contains as a substring `teacher_aware`, then it must have the signature `(augment=None, d_in=None, model=None)`,
+and it is ensured that the `model` is populated with the teacher model (pytorch).
+
+
+If your data-generation method starts with a `viz_`, then it has the signature `(model = None, output_location = output_location)`.
+More on its use later.
+
+For a datagen you can use `+` to chain together different datagens.
+
+### 5.2 MNIST Data Augmentation Summary
+
+The following bullet-point list shows a selection of the (most useful) data-augmentation techniques.
+
+- `mnist`: Loads standard mnist (60k)
+- `mnist_reduced_5k`: Loads the first 5k MNIST images.
+- `mnist+mnist_random_noise_overlay_0_1_60k+mnist_random_noise_overlay_m1_0_60k`: The `+`s indicate (as described above) that it is a combination of three datagens. The biased noise sampling method. The `overlay` indicates that it is noise ontop of MNIST. The `0_1` indicates that the perturbation is between `[0,1]`. The `60k` indicates that one generates 60k samples, so in total 60k (mnist) + 60k (from `[0,1]`) and 60k (from `[-1,0]`).
+- `mnist_composition_sampling_180k_0d0_x3_y3`: `180k` composition sampled images, not rotated (indicated by `0d0`, if there is e.g., `0d360` it means it is rotated between 0 and 360 degrees). `x3_y3` means that in total 9 images are combined to a single new one.
+- `composition_sampling_random_noise_overlay_60k_60k_0_1_m1_0`: Generates in total `180k` samples, `60k` composition sampled, `60k` composition-sampled positively random perturbed (`[0,1]`), and `60k` composition-sampled negatively (`[-1,0]`) perturbed ones.
+
+### 5.3 Teacher Inspection (Pre-Activation Figure Generation)
+
+Note that this only works for shallow teachers.
+This is in general provided by the `teacher_aware_weights_test` datagen.
+Therefore, in order to generate the data for pre-activations,
+you have to run an EC-run with a `datagen` `teacher_aware_weights_test`.
+
+Note however, that you have to specify programatically, which pre-activations you want to have, in the file `/datagen/teacher_introspection.py`, in the class `TeacherIntrospection`, and the method `teacher_aware_weights_test`.
+
+There, edit the `dataset_filename_list` list according to your needs.
+
+After execution, the file of pre-activations is provided in `/filename.csv`. 
+The output-file has the format `(neurons,samples)`. 
+So for example, given a shallow-512-neuron teacher,
+where we want to measure the pre-activations of a 5k-dataset,
+we obtain a file with 512 rows, and 5000 columns.
+
+
+After generation of the pre-activations, you can visualize it.
+Our code for this visualization is available on request.
+
+### 5.4 2D-Visualization Generation (Video-Generation)
+
+It is important to note that the actual plotting code is in another (private) repository, available on request.
+
+But for generating the data, the `viz_` data-gens are used.
+Example:
+1. Use `viz_gaussian_per_teacher_hyperplane` as the datagen.
+2. Locate and copy the generated output (in `data/sims/ec_<HASH>`) to the plotting folder.
+3. Execute the plotting code (available on request).
+
+
+
+## <a name=acknowledgements></a>6 Acknowledgements
 
 I would like to thank Christos Sourmpis for the fruitful discussions over implementation strategies for running systematic experiments, and Johnatan Frankle for making the [OpenLTH](https://github.com/facebookresearch/open_lth) framework available on GitHub!

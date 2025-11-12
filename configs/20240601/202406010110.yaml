@@ -1,0 +1,38 @@
+architecture:
+  d_in: 2
+  student:
+    activation_function: g
+    bias_1: true
+    bias_2: true
+    bias_3: true
+    hidden_layers: 3
+    number_neurons_1: 12
+    number_neurons_2: 12
+    number_neurons_3: 12
+  teacher:
+    activation_function: g
+    bias_1: true
+    bias_2: true
+    bias_3: true
+    hidden_layers: 3
+    number_neurons_1: 3
+    number_neurons_2: 3
+    number_neurons_3: 3
+data_gen:
+  data_plan: file
+  data_specification: sample
+  teacher_specification: sample
+experiment:
+  iterations_per_dataset: 15
+  name: '0110'
+  name_prefix: '20240601'
+  number_datasets: 1
+  number_of_teachers: 1
+  parallelism: none
+  processors: 1
+train_params:
+  maxiterations_ode: 10000000000.0
+  maxiterations_optim: 10000000.0
+  maxtime_ode: 3600
+  maxtime_optim: 3600
+  verbosity: 1

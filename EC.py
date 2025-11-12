@@ -11,18 +11,23 @@
 
 import argparse
 import sys
+import os
 
+import dataclasses
 from cli import runner_registry
 from cli import arg_utils
 import platforms.registry
 from utils.utils import set_seeds
 
+import logging
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
 sep = '='*80
 
 def main():
+
+
     # The welcome message.
     welcome = sep + '\nWelcome to Expand-and-Cluster!\n' + sep
 
@@ -48,6 +53,8 @@ def main():
     parser.add_argument('--display_output_location', action='store_true',
                         help='Display the output location for this job.')
     parser.add_argument('--global_seed', default=-1, help='Sets the seed for the whole experiment.')
+    parser.add_argument('--display_hashname', action='store_true',
+                        help='Display the hash location for this job.')
 
     # Get the platform arguments.
     platform_name = arg_utils.maybe_get_arg('platform') or 'local'
@@ -65,12 +72,21 @@ def main():
     set_seeds(args.global_seed)
     platform = platforms.registry.get(platform_name).create_from_args(args)
 
+    runner = runner_registry.get(runner_name).create_from_args(args)
+
     if args.display_output_location:
-        platform.run_job(runner_registry.get(runner_name).create_from_args(args).display_output_location)
-        sys.exit(0)
-
-    platform.run_job(runner_registry.get(runner_name).create_from_args(args).run)
-
+        # Displays the output location and quits
+        platform.run_job(runner.display_output_location)
+    elif args.display_hashname:
+        output = str(runner.desc.hashname)
+        if runner_name == "extract": 
+            output += f",{runner.desc.dataset_hparams.wandb_name}"
+        else: #train
+            output += f",{runner.desc.model_hparams.model_name}"
+        print(output)
+    else:
+        # Run the actual program
+        platform.run_job(runner.run)
 
 if __name__ == '__main__':
     main()

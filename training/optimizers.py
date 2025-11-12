@@ -40,15 +40,26 @@ def get_optimizer(training_hparams: TrainingHparams, model: Model) -> torch.opti
 def get_lr_schedule(training_hparams: TrainingHparams, optimizer: torch.optim.Optimizer, iterations_per_epoch: int):
     lambdas = [lambda it: 1.0]
 
-    # if plateau_opt is set
-    if training_hparams.plateau_opt:
+    # if lr_scheduler=plateau is set
+    if training_hparams.lr_scheduler == "plateau":
         sch = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
                                                          factor=training_hparams.delta,
                                                          patience=training_hparams.patience,
                                                          threshold=0.0,
                                                          cooldown=training_hparams.cooldown,
-                                                         min_lr=1e-7,
+                                                         min_lr=training_hparams.min_lr,
                                                          verbose=True)
+        return sch
+    elif training_hparams.lr_scheduler == "one_cycle":
+        sch = torch.optim.lr_scheduler.OneCycleLR(
+            optimizer,
+            max_lr=0.001,
+            div_factor=20,
+            final_div_factor=1000,
+            three_phase=True,
+            total_steps=300000
+        )
+
         return sch
 
     # Drop the learning rate according to delta at the specified milestones.

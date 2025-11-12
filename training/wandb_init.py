@@ -17,7 +17,7 @@ from foundations.step import Step
 from platforms.platform import get_platform
 
 
-def wandb_init(hyperparameters: list, run_type: str, summary_infos: dict = None):
+def wandb_init(hyperparameters: list, run_type: str, summary_infos: dict = None, wandb_name = None):
     """
     Initialize wandb for logging
     :param hyperparameters: list of hyperparameters to log
@@ -26,11 +26,14 @@ def wandb_init(hyperparameters: list, run_type: str, summary_infos: dict = None)
     """
 
     # Try to log in with wandb, if it returns an error return False
+    """
     try:
         wandb.login()
     except Exception as e:
         print(f"Could not log in to wandb: {e}\nEC.py proceeds with local logging")
         return False
+    """
+    return False
 
     config_dict = {}
     for hyp in hyperparameters:
@@ -38,19 +41,35 @@ def wandb_init(hyperparameters: list, run_type: str, summary_infos: dict = None)
         hyp_dict = {k: v for k, v in hyp_dict.items() if not k.startswith('_')}
         config_dict.update(hyp_dict)
 
-    wandb.init(project="expand-and-cluster", group=run_type, config=config_dict, dir=get_platform().root,
-               resume="allow",  # to relaunch an experiment one would have to insert the ID
-               reinit=True,  # allows recall of .init in case we are resuming a run
-               mode="online",  # change to "offline" in case you do not want syncing
-               )
+    wandb_project = "expand-and-cluster-alex"
+    wandb_mode = "online"
+    wandb_entity = "lcn-flavio"
+
+    if wandb_name is None:
+        wandb.init(project=wandb_project, group=run_type, config=config_dict, dir=get_platform().root,
+                resume="allow",  # to relaunch an experiment one would have to insert the ID
+                reinit=True,  # allows recall of .init in case we are resuming a run
+                mode=wandb_mode,  # change to "offline" in case you do not want syncing
+                entity=wandb_entity,
+                )
+    else:
+        wandb.init(project=wandb_project, group=run_type, config=config_dict, dir=get_platform().root,
+                resume="allow",  # to relaunch an experiment one would have to insert the ID
+                reinit=True,  # allows recall of .init in case we are resuming a run
+                mode=wandb_mode,  # change to "offline" in case you do not want syncing
+                entity=wandb_entity,
+                name = wandb_name
+                )
 
     if run_type == "ec":
         wandb.define_metric("training/iteration_step")
         wandb.define_metric("reconstruction/iteration_step")
         wandb.define_metric("training/*", step_metric="training/iteration_step")
         wandb.define_metric("reconstruction/*", step_metric="reconstruction/iteration_step")
+        wandb.define_metric("training/learning_rate")
     else:
         wandb.define_metric("training/iteration_step")
+        wandb.define_metric("training/learning_rate")
         wandb.define_metric("training/*", step_metric="training/iteration_step")
 
     # adding summary infos to the project

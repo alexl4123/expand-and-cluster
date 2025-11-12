@@ -1,0 +1,12 @@
+train
+--default_hparams
+cifar_lenet_64
+--global_seed
+1
+--act_fun
+sigmoid
+--dataset_name
+cifar10
+--do_not_augment
+--training_steps
+100ep

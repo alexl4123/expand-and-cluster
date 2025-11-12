@@ -119,14 +119,22 @@ class Model(base.Model):
     @staticmethod
     def loss_fn(y_hat, y):
         """y_hat is the network's output, y is the label"""
-        overall_loss = Model.individual_losses(y_hat, y).sum()
+        individual_losses = Model.individual_losses(y_hat, y)
+        overall_loss = individual_losses.sum()
         return overall_loss
 
     @staticmethod
     def individual_losses(y_hat, y):
-        y_repeats = y.unsqueeze(2).repeat(1, 1, y_hat.shape[-1])
-        return (y_hat - y_repeats).square().mean(dim=(0, 1)).squeeze()
 
+        device = y_hat.device
+
+        return_tensor = torch.zeros(y_hat.shape[-1])
+        return_tensor = return_tensor.to(device)
+
+        for student_index in range(y_hat.shape[-1]):
+            return_tensor[student_index] = ((y_hat[:,:,student_index] - y).square().mean())
+           
+        return return_tensor
 
     @property
     def loss_criterion(self):
@@ -162,10 +170,10 @@ class Model(base.Model):
             optimizer_name='adam',
             lr=0.001,
             training_steps='25000ep',
-            plateau_opt=True,
+            lr_scheduler="plateau",
             delta=1/np.sqrt(10),
-            patience=100,
-            cooldown=200
+            patience=1000,
+            cooldown=2000
         )
 
         last_hidden_idx = len(model_hparams.model_name.split('_')[1:])

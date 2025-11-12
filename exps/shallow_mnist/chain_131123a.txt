@@ -1,0 +1,13 @@
+python -u EC.py $(< exps/shallow_mnist/ec_sig/111123c.txt)
+
+python -u EC.py $(< exps/shallow_mnist/ec_softp/121123a.txt)
+
+python -u EC.py $(< exps/shallow_mnist/ec_softp/121123b.txt)
+
+python -u EC.py $(< exps/shallow_mnist/ec_softp/121123c.txt)
+
+python -u EC.py $(< exps/shallow_mnist/ec_relu/121123a.txt)
+
+python -u EC.py $(< exps/shallow_mnist/ec_relu/121123b.txt)
+
+

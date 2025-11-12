@@ -1,0 +1,10 @@
+train
+--default_hparams
+cifar_lenet_32
+--global_seed
+1
+--act_fun
+g
+--do_not_augment
+--training_steps
+40ep

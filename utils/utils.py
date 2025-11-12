@@ -44,4 +44,3 @@ def find_final_model_step(location, iterations_per_epoch):
             return Step.from_epoch(ep, it, iterations_per_epoch)
     return None
 
-

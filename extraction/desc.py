@@ -88,8 +88,17 @@ class ExtractionDesc(desc.Desc):
         fields_dict = {f.name: getattr(self, f.name) for f in fields(self)}
         fields_dict_copy = copy.deepcopy(fields_dict)
         fields_dict_copy['extraction_hparams'].conv_level = None
-        extraction_hparams_strs = [str(fields_dict_copy[k]) for k in sorted(fields_dict_copy)
-                                   if isinstance(fields_dict_copy[k], ExtractionHparams)]
+
+        extraction_hparams_strs = []
+        for k in sorted(fields_dict_copy):
+            if isinstance(fields_dict_copy[k], ExtractionHparams):
+                local_str = str(fields_dict_copy[k])
+                local_str = local_str.replace(", only_compute_distance=True","")
+                local_str = local_str.replace(", only_compute_distance=False","")
+                extraction_hparams_strs.append(local_str)
+
+        #extraction_hparams_strs = [str(fields_dict_copy[k]) for k in sorted(fields_dict_copy)
+        #                           if isinstance(fields_dict_copy[k], ExtractionHparams)]
         extraction_hash_str = hashlib.blake2b(';'.join(extraction_hparams_strs).encode('utf-8'),
                                               digest_size=5).hexdigest()
         return f'clustering_{extraction_hash_str}'

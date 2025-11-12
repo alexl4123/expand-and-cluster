@@ -27,7 +27,7 @@ class Hparams(abc.ABC):
 
     def __post_init__(self):
         if not hasattr(self, '_name'): raise ValueError('Must have field _name with string value.')
-        if not hasattr(self, '_description'): raise ValueError('Must have field _name with string value.')
+        if not hasattr(self, '_description'): raise ValueError('Must have field _description with string value.')
 
     @classmethod
     def add_args(cls, parser, defaults: 'Hparams' = None, prefix: str = None,
@@ -124,6 +124,12 @@ class DatasetHparams(Hparams):
     samples: int = None
     datagen: str = None
     d_in: int = None
+    original_dataset_name: str = None
+    wandb_name: str = None
+    experiment_name: str = None
+    experiment_data_index: str = None
+    teacher_specification: str = "" # For number of datapoints tests
+    student_specification: str = "" # For number of datapoints tests
 
     _name: str = 'Dataset Hyperparameters'
     _description: str = 'Hyperparameters that select the dataset, data augmentation, and other data transformations.'
@@ -144,6 +150,12 @@ class DatasetHparams(Hparams):
     _samples: str = 'The amount of samples to extract from the teacher'
     _datagen: str = 'A list of datagen policies separated by a "+" character (e.g. --datagen mnist+random+grid)'
     _d_in: str = 'The input dimensionality of the teacher'
+    _original_dataset_name: str = "Name of dataset where the teacher was trained upon."
+    _wandb_name: str = 'Name given to the wandb run (displays in wandb dashboard)'
+    _teacher_specification: str = "TODO"
+    _student_specification: str = "TODO"
+    _experiment_name: str = "TODO"
+    _experiment_data_index: str = "TODO"
 
 @dataclass
 class ModelHparams(Hparams):
@@ -155,6 +167,7 @@ class ModelHparams(Hparams):
     others_frozen: bool = False
     others_frozen_exceptions: str = None
     act_fun: str = "relu"
+    model_specification: str = ""
 
     _name: str = 'Model Hyperparameters'
     _description: str = 'Hyperparameters that select the model, initialization, and weight freezing.'
@@ -166,6 +179,7 @@ class ModelHparams(Hparams):
     _others_frozen: str = 'If true, all other (non-output, non-batchnorm) parameters are frozen at initialization.'
     _others_frozen_exceptions: str = 'A comma-separated list of any tensors that should not be frozen.'
     _act_fun: str = "Activation function"
+    _model_specification: str = "For fully_connected_specified the exact specification of weights of the model."
 
 
 @dataclass
@@ -178,13 +192,15 @@ class TrainingHparams(Hparams):
     nesterov_momentum: float = 0.0
     milestone_steps: str = None
     delta: float = None
-    plateau_opt: bool = False
+    lr_scheduler: str = None
     patience: int = None
     cooldown: int = None
     warmup_steps: str = None
     weight_decay: float = None
     apex_fp16: bool = False
     further_training: str = None
+    precision: str = None
+    min_lr: float = 1e-7
 
     _name: str = 'Training Hyperparameters'
     _description: str = 'Hyperparameters that determine how the model is trained.'
@@ -195,11 +211,11 @@ class TrainingHparams(Hparams):
     _nesterov: bool = 'The nesterov momentum to use with the SGD optimizer. Cannot set both momentum and nesterov.'
     _milestone_steps: str = 'Steps when the learning rate drops by a factor of delta. Written as comma-separated ' \
                             'steps (80ep,160ep,240ep) where steps are epochs (\'160ep\') or iterations (\'50000it\').'
-    _delta: str = 'The factor at which to drop the learning rate at each milestone.'
-    _plateau_opt: str = 'If true, selects the ReduceLRonPlateau optimizer, requires: --delta, --patience, --cooldown'
-    _patience: str = 'Only necessary with --plateau_opt, sets the patience argument of ' \
+    _delta: str = 'Only necessary with --lr_scheduler=plateau, the factor at which to drop the learning rate at each milestone.'
+    _lr_scheduler: str = 'If plateau, selects the ReduceLRonPlateau optimizer, requires: --delta, --patience, --cooldown'
+    _patience: str = 'Only necessary with --lr_scheduler=plateau, sets the patience argument of ' \
                      'torch.optim.lr_scheduler.ReduceLRonPlateau'
-    _cooldown: str = 'Only necessary with --plateau_opt, sets the cooldown argument of ' \
+    _cooldown: str = 'Only necessary with --lr_scheduler=plateau, sets the cooldown argument of ' \
                      'torch.optim.lr_scheduler.ReduceLRonPlateau'
     _data_order_seed: str = 'The random seed for the data order. If not set, the data order is random and unrepeatable.'
     _warmup_steps: str = "Steps of linear lr warmup at the start of training as epochs ('20ep') or iterations ('800it')"
@@ -207,7 +223,9 @@ class TrainingHparams(Hparams):
     _apex_fp16: bool = 'Whether to train the model in float16 using the NVIDIA Apex library.'
     _further_training: str = 'Overwrites the final steps to perform to the same model after it has been trained ' \
                              'already (does not modify the hashname of the simulation). Example: write 30000ep if you '\
-                             'want your model to be trained from where it stopped to 30000 epochs.' \
+                             'want your model to be trained from where it stopped to 30000 epochs.'
+    _precision: str = 'Specify used precision, one of float32, float64, float128'
+    _min_lr: str = 'Minimum learning rate of learning rate scheduler (Plateau)'
 
 
 @dataclass
@@ -224,10 +242,11 @@ class PruningHparams(Hparams):
 class ExtractionHparams(Hparams):
     gamma: float
     beta: float
-    finetune_traning_steps: str = "5000ep"  # TODO: fix typo but after sims have run!
+    finetune_training_steps: str = "5000ep"  # TODO: fix typo but after sims have run!
     finetune_lr: float = 1e-4
     boruta: str = None
     conv_level: int = None
+    only_compute_distance: bool = False
 
     _name: str = 'Extraction Hyperparameters'
     _description: str = 'Hyperparameters describing the network extraction with Expand-and-Cluster.'
@@ -236,8 +255,9 @@ class ExtractionHparams(Hparams):
     _beta: str = 'The beta parameter of Expand-and-Cluster: clusters of vectors whose median angle is > beta are ' \
                  'filtered out. For simplicity, the Beta in the paper is specified here as np.pi/beta (i.e. you need ' \
                  'to provide *only* the value that divides pi).'
-    _finetune_traning_steps: str = 'The number of steps to finetune the extracted network after every layer extraction.'
+    _finetune_training_steps: str = 'The number of steps to finetune the extracted network after every layer extraction.'
     _finetune_lr: str = 'The learning rate for the finetuning step.'
     _boruta: str = 'The dataset from which to take the boruta mask to use for input weight filtering. e.g. "mnist"'
     _conv_level: str = 'Indicates the level at which the bottom convolutional weights need to be loaded from previous' \
                        ' layers reconstructions '
+    _only_compute_distance: str = 'Set to (try to) only compute the cosine-distances for an already successfully extracted student.'

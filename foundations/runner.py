@@ -44,6 +44,12 @@ class Runner(abc.ABC):
         pass
 
     @abc.abstractmethod
+    def get_output_location(self) -> None:
+        """Get the output location as a string."""
+
+        pass
+
+    @abc.abstractmethod
     def run(self) -> None:
         """Run the job."""
 

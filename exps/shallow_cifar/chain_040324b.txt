@@ -1,0 +1,1 @@
+python -u EC.py $(< exps/shallow_cifar/ec/tanh/180324a.txt)

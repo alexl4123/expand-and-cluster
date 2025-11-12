@@ -1,0 +1,7 @@
+train
+--default_hparams
+mnist_lenet_30_30_30
+--global_seed
+1
+--act_fun
+g

@@ -1,0 +1,13 @@
+train
+--default_hparams
+fully_connected_specified_2
+--global_seed
+1
+--act_fun
+g
+--dataset_name
+mnist_reduced_5k
+--training_steps
+250ep
+--model_specification
+20240607_1000

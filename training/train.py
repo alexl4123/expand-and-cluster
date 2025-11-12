@@ -25,7 +25,7 @@ from training import optimizers
 from training import standard_callbacks
 from training.metric_logger import MetricLogger
 
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.optim.lr_scheduler import ReduceLROnPlateau, OneCycleLR, StepLR
 
 from utils.utils import find_final_model_step
 
@@ -74,6 +74,8 @@ def train(
     optimizer = optimizers.get_optimizer(training_hparams, model)
     step_optimizer = optimizer
     lr_schedule = optimizers.get_lr_schedule(training_hparams, optimizer, train_loader.iterations_per_epoch)
+    #lr_schedule = OneCycleLR(optimizer, max_lr=0.025, steps_per_epoch=len(train_loader), epochs=1000, three_phase=True)
+    #lr_schedule = StepLR(optimizer, step_size=1, gamma=0.99902)
 
     # Adapt for FP16.
     if training_hparams.apex_fp16:
@@ -97,7 +99,8 @@ def train(
     if not isinstance(lr_schedule, ReduceLROnPlateau):
         with warnings.catch_warnings():  # Filter unnecessary warning.
             # warnings.filterwarnings("ignore", category=UserWarning)
-            for _ in range(start_step.iteration): lr_schedule.step()
+            #for _ in range(start_step.iteration): lr_schedule.step()
+            pass
 
     if training_hparams.further_training is None:
         # Determine when to end training.
@@ -116,12 +119,13 @@ def train(
         lr_schedule.min_lrs = [0.0]  # set min_lr to 0 to ensure further training
         lr_schedule.eps = 0.0  # set eps to 0 to ensure further training
 
+
+    loss_ep = 0
     # The training loop.
     for ep in range(start_step.ep, end_step.ep + 1):
 
         # Ensure the data order is different for each epoch.
         train_loader.shuffle(None if data_order_seed is None else (data_order_seed + ep))
-        loss_ep = 0
 
         for it, (examples, labels) in enumerate(train_loader):
 
@@ -142,6 +146,11 @@ def train(
             step_optimizer.zero_grad()
             model.train()
             loss = model.loss_criterion(model(examples), labels)
+
+            if step.iteration % 1000 == 0:
+                print(f"--> Loss at iteration {step.iteration}: {loss}")
+
+            #loss.requires_grad = True
             if training_hparams.apex_fp16:
                 with apex.amp.scale_loss(loss, optimizer) as scaled_loss:
                     scaled_loss.backward()
@@ -156,19 +165,30 @@ def train(
                 with warnings.catch_warnings():  # Filter unnecessary warning.
                     warnings.filterwarnings("ignore", category=UserWarning)
                     lr_schedule.step()
+            elif step.iteration % 100 == 0:
+                loss_ep = loss_ep / 100
 
-        loss_ep /= train_loader.iterations_per_epoch
+                with warnings.catch_warnings():  # Filter unnecessary warning.
+                    warnings.filterwarnings("ignore", category=UserWarning)
+                    lr_schedule.step(loss_ep)
+
+                loss_ep = 0
+
+
+        #loss_ep /= train_loader.iterations_per_epoch
         if isinstance(lr_schedule, ReduceLROnPlateau):
             if step_optimizer.param_groups[0]["lr"] < lr_schedule.min_lrs[0]+lr_schedule.eps:  # End if lr is minimal
                 current_step = Step.from_epoch(ep, it, train_loader.iterations_per_epoch)
                 model.save(output_location, current_step)
                 logger.save(output_location)
                 break
-            with warnings.catch_warnings():  # Filter unnecessary warning.
-                warnings.filterwarnings("ignore", category=UserWarning)
-                lr_schedule.step(loss_ep)
+            #with warnings.catch_warnings():  # Filter unnecessary warning.
+            #    warnings.filterwarnings("ignore", category=UserWarning)
+            #    lr_schedule.step(loss_ep)
 
     get_platform().barrier()
+
+    return loss
 
 
 def standard_train(
@@ -192,5 +212,5 @@ def standard_train(
     test_loader = datasets.registry.get(dataset_hparams, train=False)
     callbacks = standard_callbacks.standard_callbacks(
         training_hparams, train_loader, test_loader, start_step=start_step,
-        verbose=verbose, evaluate_every_epoch=evaluate_every_epoch, eval_on_train=True)
+        verbose=verbose, evaluate_every_1000_steps=evaluate_every_epoch, eval_on_train=True)
     train(training_hparams, model, train_loader, output_location, callbacks, start_step=start_step)

@@ -1,0 +1,11 @@
+train
+--default_hparams
+mnist_lenet_<REPLACE-TEACHER-SIZE>
+--global_seed
+<REPLACE-GLOB-SEED>
+--act_fun
+<REPLACE-ACT-FUN>
+--dataset_name
+<REPLACE-DATASET-NAME>
+--training_steps
+250ep

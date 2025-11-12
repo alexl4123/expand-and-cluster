@@ -1,0 +1,11 @@
+train
+--default_hparams
+mnist_lenet_256
+--global_seed
+1
+--act_fun
+relu
+--dataset_name
+mnist
+--training_steps
+250ep
